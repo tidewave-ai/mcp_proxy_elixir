@@ -4,6 +4,8 @@
 
 An escript for connecting STDIO based MCP clients to HTTP (SSE) based MCP servers.
 
+Note: At the moment this only works with MCP servers that use the `2024-11-05` specification.
+
 ## Installation
 
 ```bash
