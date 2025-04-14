@@ -108,15 +108,7 @@ defmodule McpProxy do
 
         {:ok, event_type, data} ->
           if debug, do: Logger.debug("Received SSE event: #{event_type}, data: #{data}")
-          # Forward other events to stdout
-          case Jason.decode(data) do
-            {:ok, parsed_data} ->
-              response_json = Jason.encode_to_iodata!(parsed_data)
-              IO.write(:stdio, [response_json, ?\n])
-
-            _ ->
-              if debug, do: Logger.debug("Failed to parse SSE event data as JSON: #{data}")
-          end
+          IO.write(:stdio, [data, ?\n])
 
         {:error, error} ->
           if debug, do: Logger.debug("Error parsing SSE event: #{inspect(error)}")
