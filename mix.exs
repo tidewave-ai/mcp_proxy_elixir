@@ -20,7 +20,6 @@ defmodule McpProxy.MixProject do
     [
       main_module: McpProxy,
       name: "mcp_proxy",
-      app: nil,
       path: "mcp_proxy"
     ]
   end

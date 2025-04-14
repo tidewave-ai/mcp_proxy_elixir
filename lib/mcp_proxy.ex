@@ -7,6 +7,7 @@ defmodule McpProxy do
 
   require Logger
 
+  @doc false
   def main(args) do
     {opts, _, _} =
       OptionParser.parse(args,
@@ -74,7 +75,7 @@ defmodule McpProxy do
 
         # When SSE connection ends, notify the parent process
         if debug, do: Logger.debug("SSE connection closed")
-        send(parent, {:sse_closed})
+        send(parent, :sse_closed)
       end)
 
     # Wait for the endpoint URL
@@ -85,7 +86,7 @@ defmodule McpProxy do
       {:sse_error, error} ->
         {:error, "SSE connection error: #{inspect(error)}"}
 
-      {:sse_closed} ->
+      :sse_closed ->
         {:error, "SSE connection closed before receiving endpoint"}
     after
       10_000 ->
@@ -110,8 +111,8 @@ defmodule McpProxy do
           # Forward other events to stdout
           case Jason.decode(data) do
             {:ok, parsed_data} ->
-              response_json = Jason.encode!(parsed_data)
-              IO.write(:stdio, "#{response_json}\n")
+              response_json = Jason.encode_to_iodata!(parsed_data)
+              IO.write(:stdio, [response_json, ?\n])
 
             _ ->
               if debug, do: Logger.debug("Failed to parse SSE event data as JSON: #{data}")
@@ -131,7 +132,7 @@ defmodule McpProxy do
       |> Enum.find(fn line -> String.starts_with?(line, "event:") end)
       |> case do
         nil -> "message"
-        line -> String.trim(String.replace(line, "event:", ""))
+        line -> String.trim(String.replace_prefix(line, "event:", ""))
       end
 
     data_line =
@@ -139,7 +140,7 @@ defmodule McpProxy do
       |> Enum.find(fn line -> String.starts_with?(line, "data:") end)
       |> case do
         nil -> nil
-        line -> String.trim(String.replace(line, "data:", ""))
+        line -> String.trim(String.replace_prefix(line, "data:", ""))
       end
 
     case data_line do
@@ -170,28 +171,8 @@ defmodule McpProxy do
 
       line ->
         if debug, do: Logger.debug("Received input: #{inspect(line)}")
-
-        case Jason.decode(line) do
-          {:ok, request} ->
-            if debug, do: Logger.debug("Parsed request: #{inspect(request)}")
-            # forward a POST to the message endpoint
-            forward_request(endpoint, request, debug)
-
-          {:error, error} ->
-            if debug,
-              do: Logger.debug("JSON parse error: #{inspect(error)}, input was: #{inspect(line)}")
-
-            error = %{
-              jsonrpc: "2.0",
-              error: %{
-                code: -32700,
-                message: "Parse error: #{inspect(error)}"
-              }
-            }
-
-            IO.write(:stdio, "#{Jason.encode!(error)}\n")
-        end
-
+        # forward a POST to the message endpoint
+        forward_request(endpoint, line, debug)
         process_stdio(endpoint, debug, sse_ref)
     end
   end
@@ -203,7 +184,7 @@ defmodule McpProxy do
       Req.new(
         url: endpoint,
         method: :post,
-        json: request,
+        body: request,
         headers: [
           {"accept", "application/json"},
           {"content-type", "application/json"}
@@ -225,24 +206,17 @@ defmodule McpProxy do
       {:ok, %{status: status, body: body}} ->
         if debug, do: Logger.debug("Unexpected response body: #{inspect(body)}")
 
-        # Try to parse the body if it's a string
-        case is_binary(body) && Jason.decode(body) do
-          {:ok, parsed_body} ->
-            parsed_body
-
-          _ ->
-            %{
-              jsonrpc: "2.0",
-              error: %{
-                code: -32603,
-                message: "Internal error",
-                data: %{
-                  details: "Server responded with status #{status}",
-                  body: body
-                }
-              }
+        %{
+          jsonrpc: "2.0",
+          error: %{
+            code: -32603,
+            message: "Internal error",
+            data: %{
+              details: "Server responded with status #{status}",
+              body: body
             }
-        end
+          }
+        }
 
       {:error, exception} ->
         # Handle all error cases
