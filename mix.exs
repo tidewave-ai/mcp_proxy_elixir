@@ -10,6 +10,8 @@ defmodule McpProxy.MixProject do
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      package: package(),
+      description: description(),
       escript: escript(),
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: docs()
@@ -21,6 +23,27 @@ defmodule McpProxy.MixProject do
       main_module: McpProxy,
       name: "mcp_proxy",
       path: "mcp_proxy"
+    ]
+  end
+
+  defp description() do
+    "An escript for connecting STDIO based MCP clients to HTTP (SSE) based MCP servers."
+  end
+
+  defp package do
+    [
+      maintainers: ["Steffen Deusch", "José Valim"],
+      licenses: ["Apache-2.0"],
+      links: %{
+        GitHub: "https://github.com/tidewave-ai/mcp_proxy_elixir"
+      },
+      files: [
+        "lib",
+        "LICENSE",
+        "mix.exs",
+        "README.md",
+        ".formatter.exs"
+      ]
     ]
   end
 
