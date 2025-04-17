@@ -274,12 +274,12 @@ defmodule McpProxy.SSE do
     backoff = min(2 ** state.connect_tries, 8)
 
     Logger.info("SSE connection closed. Trying to reconnect in #{backoff}s.")
-    Process.send_after(self(), :reconnect, to_timeout(second: backoff))
+    Process.send_after(self(), :reconnect, backoff * 1000)
 
     if state.connect_tries == 0 do
       # we give the server 20 seconds to reconnect and store incoming
       # tool calls, but after that we reply with an error
-      Process.send_after(self(), :fail_flush, to_timeout(second: 20))
+      Process.send_after(self(), :fail_flush, 20_000)
     end
 
     if disconnected_too_long?(state) do
