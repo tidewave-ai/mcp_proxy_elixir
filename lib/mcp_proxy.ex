@@ -7,7 +7,13 @@ defmodule McpProxy do
   @doc false
   def main(args) do
     {opts, args} =
-      OptionParser.parse!(args, strict: [debug: :boolean, max_disconnected_time: :integer])
+      OptionParser.parse!(args,
+        strict: [
+          debug: :boolean,
+          max_disconnected_time: :integer,
+          receive_timeout: :integer
+        ]
+      )
 
     base_url =
       case args do
@@ -23,8 +29,9 @@ defmodule McpProxy do
       end
 
     Application.ensure_all_started(:req)
+    Application.put_all_env(mcp_proxy: opts)
 
-    {:ok, handler} = SSE.start_link({base_url, opts})
+    {:ok, handler} = SSE.start_link(base_url)
     ref = Process.monitor(handler)
 
     receive do

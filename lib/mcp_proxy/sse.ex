@@ -34,13 +34,13 @@ defmodule McpProxy.SSE do
   end
 
   @impl true
-  def init({sse_url, opts}) do
+  def init(sse_url) do
     {:ok,
      %{
        url: sse_url,
        endpoint: nil,
-       debug: Keyword.get(opts, :debug, false),
-       max_disconnected_time: Keyword.get(opts, :max_disconnected_time),
+       debug: Application.get_env(:mcp_proxy, :debug, false),
+       max_disconnected_time: Application.get_env(:mcp_proxy, :max_disconnected_time),
        disconnected_since: nil,
        state: :connecting,
        connect_tries: 0,
@@ -263,11 +263,17 @@ defmodule McpProxy.SSE do
   end
 
   # regular events
-  def handle_info({:sse_event, {:message, event}}, state),
-    do: handle_event(event, state, &IO.puts(Jason.encode!(&1)))
+  def handle_info({:sse_event, {:message, event}}, state) do
+    handle_event(event, state, {&IO.puts(Jason.encode!(&1)), fn _ -> :ok end})
+  end
 
-  def handle_info({:io_event, event}, state),
-    do: handle_event(event, state, &forward_message(&1, state.endpoint, state.debug))
+  def handle_info({:io_event, event}, state) do
+    handle_event(
+      event,
+      state,
+      {&forward_message(&1, state.endpoint, state.debug), &IO.puts(Jason.encode!(&1))}
+    )
+  end
 
   # whenever the HTTP process dies, we try to reconnect
   def handle_info({:DOWN, _ref, :process, http_pid, _reason}, %{http_pid: http_pid} = state) do
@@ -327,7 +333,7 @@ defmodule McpProxy.SSE do
     Enum.reduce(messages, state, fn message, state -> handle_event(message, state, handler) end)
   end
 
-  defp handle_event(%{"jsonrpc" => "2.0", "id" => request_id} = event, state, handler)
+  defp handle_event(%{"jsonrpc" => "2.0", "id" => request_id} = event, state, {req, resp})
        when is_request(event) do
     # whenever we get a request from the client (OR the server!)
     # we generate a random ID to prevent duplicate IDs, for example when
@@ -335,12 +341,18 @@ defmodule McpProxy.SSE do
     new_id = random_id!()
     event = Map.put(event, "id", new_id)
 
-    handler.(event)
+    case req.(event) do
+      :ok ->
+        :ok
+
+      {:reply_error, reply} ->
+        resp.(Map.put(reply, "id", request_id))
+    end
 
     {:noreply, %{state | id_map: Map.put(state.id_map, new_id, request_id)}}
   end
 
-  defp handle_event(%{"jsonrpc" => "2.0", "id" => response_id} = event, state, handler)
+  defp handle_event(%{"jsonrpc" => "2.0", "id" => response_id} = event, state, {handler, _})
        when is_response(event) do
     # whenever we receive a response (from the client or server)
     # we fetch the original ID from the id map to present the expected
@@ -354,8 +366,8 @@ defmodule McpProxy.SSE do
   end
 
   # no id, so must be a notification that we can just forward as is
-  defp handle_event(%{"jsonrpc" => "2.0"} = event, state, handler) do
-    handler.(event)
+  defp handle_event(%{"jsonrpc" => "2.0"} = event, state, {req, _}) do
+    req.(event)
 
     {:noreply, state}
   end
@@ -363,16 +375,30 @@ defmodule McpProxy.SSE do
   ## other helpers
 
   defp forward_message(message, endpoint, debug) do
-    try do
-      if debug, do: Logger.debug("Forwarding request to server: #{inspect(message)}")
-      Req.post!(endpoint, json: message)
-    rescue
-      error ->
-        Logger.error(
-          "Failed to forward message: #{Exception.format(:error, error, __STACKTRACE__)}"
-        )
+    if debug, do: Logger.debug("Forwarding request to server: #{inspect(message)}")
 
-        # TODO: store message and replay later?
+    case Req.post(endpoint,
+           json: message,
+           receive_timeout: Application.get_env(:mcp_proxy, :receive_timeout, 60_000)
+         ) do
+      {:ok, %{status: status}} when status in 200..299 ->
+        :ok
+
+      {:ok, %{status: status}} ->
+        {:reply_error,
+         %{
+           jsonrpc: "2.0",
+           error: %{
+             code: -32011,
+             message: "Failed to forward request. Request failed with status code: #{status}"
+           }
+         }}
+
+      {:error, reason} ->
+        Logger.error("Failed to forward message #{inspect(message)}:\n#{inspect(reason)}")
+        # we cannot assume that the server might still answer later (for example for timeouts)
+        # so we don't reply.
+        :ok
     end
   end
 
