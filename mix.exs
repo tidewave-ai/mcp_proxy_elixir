@@ -42,6 +42,7 @@ defmodule McpProxy.MixProject do
         "LICENSE",
         "mix.exs",
         "README.md",
+        "CHANGELOG.md",
         ".formatter.exs"
       ]
     ]
@@ -72,7 +73,7 @@ defmodule McpProxy.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: "https://github.com/tidewave-ai/mcp_proxy",
-      extras: ["README.md"]
+      extras: ["README.md", "CHANGELOG.md"]
     ]
   end
 end
