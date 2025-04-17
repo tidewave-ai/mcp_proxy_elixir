@@ -4,7 +4,7 @@ defmodule McpProxy do
 
   @doc false
   def main(args) do
-    {opts, _} = OptionParser.parse!(args, strict: [debug: :boolean])
+    {opts, args} = OptionParser.parse!(args, strict: [debug: :boolean])
 
     base_url =
       case args do
@@ -67,25 +67,18 @@ defmodule McpProxy do
           )
         rescue
           e ->
-            if debug, do: Logger.debug("Error in SSE connection: #{inspect(e)}")
-            send(parent, {:sse_error, e})
+            Logger.error("Error in SSE connection: #{inspect(e)}")
+            System.stop(1)
         end
 
-        # When SSE connection ends, notify the parent process
-        if debug, do: Logger.debug("SSE connection closed")
-        send(parent, :sse_closed)
+        Logger.info("SSE connection closed. Exiting.")
+        System.stop(1)
       end)
 
     # Wait for the endpoint URL
     receive do
       {:endpoint, endpoint} ->
         {:ok, endpoint, pid}
-
-      {:sse_error, error} ->
-        {:error, "SSE connection error: #{inspect(error)}"}
-
-      :sse_closed ->
-        {:error, "SSE connection closed before receiving endpoint"}
     after
       10_000 ->
         {:error, "Timeout waiting for endpoint URL"}
