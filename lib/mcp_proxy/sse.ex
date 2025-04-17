@@ -341,15 +341,20 @@ defmodule McpProxy.SSE do
     new_id = random_id!()
     event = Map.put(event, "id", new_id)
 
-    case req.(event) do
-      :ok ->
-        :ok
+    state =
+      case req.(event) do
+        :ok ->
+          %{state | id_map: Map.put(state.id_map, new_id, request_id)}
 
-      {:reply_error, reply} ->
-        resp.(Map.put(reply, "id", request_id))
-    end
+        {:reply_error, reply} ->
+          resp.(Map.put(reply, "id", request_id))
+          # we don't store the new_id when we already replied to prevent duplicates;
+          # instead, we'll log an error if a server reply is received later and we already
+          # replied
+          state
+      end
 
-    {:noreply, %{state | id_map: Map.put(state.id_map, new_id, request_id)}}
+    {:noreply, state}
   end
 
   defp handle_event(%{"jsonrpc" => "2.0", "id" => response_id} = event, state, {handler, _})
@@ -357,12 +362,21 @@ defmodule McpProxy.SSE do
     # whenever we receive a response (from the client or server)
     # we fetch the original ID from the id map to present the expected
     # ID in the reply
-    original_id = Map.fetch!(state.id_map, response_id)
-    event = Map.put(event, "id", original_id)
+    case state.id_map do
+      %{^response_id => original_id} ->
+        event = Map.put(event, "id", original_id)
 
-    handler.(event)
+        handler.(event)
 
-    {:noreply, %{state | id_map: Map.delete(state.id_map, response_id)}}
+        {:noreply, %{state | id_map: Map.delete(state.id_map, response_id)}}
+
+      _ ->
+        Logger.error(
+          "Did not find original ID for response: #{response_id}. Discarding response!"
+        )
+
+        {:noreply, state}
+    end
   end
 
   # no id, so must be a notification that we can just forward as is
@@ -394,11 +408,17 @@ defmodule McpProxy.SSE do
            }
          }}
 
-      {:error, reason} ->
+      {:error, %Req.TransportError{reason: reason}} ->
         Logger.error("Failed to forward message #{inspect(message)}:\n#{inspect(reason)}")
-        # we cannot assume that the server might still answer later (for example for timeouts)
-        # so we don't reply.
-        :ok
+
+        {:reply_error,
+         %{
+           jsonrpc: "2.0",
+           error: %{
+             code: -32011,
+             message: "Failed to forward request. Reason: #{inspect(reason)}"
+           }
+         }}
     end
   end
 

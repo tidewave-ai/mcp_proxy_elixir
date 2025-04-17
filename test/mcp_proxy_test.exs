@@ -6,7 +6,7 @@ defmodule McpProxyTest do
 
   alias McpProxy.SSEServer
 
-  setup do
+  setup context do
     {result, _output} =
       with_io(:stderr, fn ->
         _server_pid = start_supervised!(SSEServer, restart: :temporary)
@@ -17,7 +17,10 @@ defmodule McpProxyTest do
         _main_pid =
           spawn_link(fn ->
             Process.group_leader(self(), parent)
-            McpProxy.main(["http://localhost:#{port}/sse", "--debug"])
+
+            McpProxy.main(
+              ["http://localhost:#{port}/sse", "--debug"] ++ (context[:extra_args] || [])
+            )
           end)
 
         assert_receive {:io_request, io_pid, reply_as, {:get_line, :unicode, []}}
@@ -114,6 +117,32 @@ defmodule McpProxyTest do
 
     assert io =~ "SSE connection closed. Trying to reconnect"
     assert io =~ "Flushing buffer"
+  end
+
+  @tag extra_args: ["--receive-timeout", "50"]
+  test "handles receive timeout", %{io_pid: io_pid, reply_as: reply_as} do
+    capture_io(:stderr, fn ->
+      send_message(
+        io_pid,
+        reply_as,
+        %{
+          jsonrpc: "2.0",
+          id: "call-1",
+          method: "tools/call",
+          params: %{"name" => "sleep", "arguments" => %{"time" => 100}}
+        }
+      )
+
+      assert_receive {:io_request, _io_pid, _reply_as, {:get_line, :unicode, []}}
+      assert_receive {:io_request, put_pid, put_reply_as, {:put_chars, :unicode, json}}, 100
+      send(put_pid, {:io_reply, put_reply_as, :ok})
+
+      assert %{"id" => "call-1", "error" => %{"message" => message}} = Jason.decode!(json)
+      assert message =~ "Failed to forward request"
+
+      # wait an extra 100 milliseconds for the log about discarding a duplicate response
+      Process.sleep(100)
+    end) =~ "Discarding!"
   end
 
   defp send_message(io_pid, reply_as, json) do
