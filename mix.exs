@@ -21,8 +21,8 @@ defmodule McpProxy.MixProject do
   defp escript do
     [
       main_module: McpProxy,
-      name: "mcp_proxy",
-      path: "mcp_proxy"
+      name: "mcp-proxy",
+      path: "mcp-proxy"
     ]
   end
 
@@ -68,9 +68,10 @@ defmodule McpProxy.MixProject do
 
   defp docs do
     [
-      main: "McpProxy",
+      main: "readme",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/tidewave-ai/mcp_proxy"
+      source_url: "https://github.com/tidewave-ai/mcp_proxy",
+      extras: ["README.md"]
     ]
   end
 end

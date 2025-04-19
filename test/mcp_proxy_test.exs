@@ -12,7 +12,7 @@ defmodule McpProxyTest do
     pid =
       spawn_link(fn ->
         Process.group_leader(self(), parent)
-        McpProxy.main(["--url", "http://localhost:#{port}/sse"])
+        McpProxy.main(["http://localhost:#{port}/sse"])
       end)
 
     assert_receive {:io_request, ^pid, reply_as, {:get_line, :unicode, []}}

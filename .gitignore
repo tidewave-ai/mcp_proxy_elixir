@@ -22,4 +22,5 @@ mcp_proxy-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-/mcp_proxy
+# Escript
+/mcp-proxy
