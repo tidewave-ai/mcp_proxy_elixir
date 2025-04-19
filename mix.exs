@@ -68,6 +68,7 @@ defmodule McpProxy.MixProject do
 
   defp docs do
     [
+      api_reference: false,
       main: "readme",
       source_ref: "v#{@version}",
       source_url: "https://github.com/tidewave-ai/mcp_proxy",
