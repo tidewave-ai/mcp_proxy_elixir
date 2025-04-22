@@ -13,7 +13,7 @@ defmodule McpProxy do
 
         [] ->
           System.get_env("SSE_URL") ||
-            raise "either --url or SSE_URL environment variable must be set"
+            raise "either the URL is passed as first argument or the SSE_URL environment variable must be set"
 
         many ->
           raise "expected one or zero arguments, got: #{inspect(many)}"
