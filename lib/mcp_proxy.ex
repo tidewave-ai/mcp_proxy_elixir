@@ -1,25 +1,23 @@
 defmodule McpProxy do
-  @external_resource "README.md"
-  @moduledoc @external_resource
-             |> File.read!()
-             |> String.split("<!-- MDOC !-->")
-             |> Enum.fetch!(1)
-
+  @moduledoc false
   require Logger
 
   @doc false
   def main(args) do
-    {opts, _, _} =
-      OptionParser.parse(args,
-        strict: [
-          url: :string,
-          debug: :boolean
-        ]
-      )
+    {opts, _} = OptionParser.parse!(args, strict: [debug: :boolean])
 
     base_url =
-      Keyword.get_lazy(opts, :url, fn -> System.get_env("SSE_URL") end) ||
-        raise "either --url or SSE_URL environment variable must be set"
+      case args do
+        [arg_url] ->
+          arg_url
+
+        [] ->
+          System.get_env("SSE_URL") ||
+            raise "either the URL is passed as first argument or the SSE_URL environment variable must be set"
+
+        many ->
+          raise "expected one or zero arguments, got: #{inspect(many)}"
+      end
 
     debug = Keyword.get(opts, :debug, false)
 
