@@ -190,7 +190,7 @@ defmodule McpProxy.SSE do
       {:noreply,
        %{state | state: {:waiting_for_server_init_hidden, init_message["id"]}, endpoint: endpoint}}
     else
-      Logger.debug("waiting for client init")
+      if state.debug, do: Logger.debug("waiting for client init")
       {:noreply, %{spawn_io_process(state) | endpoint: endpoint, state: :waiting_for_client_init}}
     end
   end
