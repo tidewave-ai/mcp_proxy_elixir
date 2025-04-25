@@ -395,18 +395,10 @@ defmodule McpProxy.SSE do
            json: message,
            receive_timeout: Application.get_env(:mcp_proxy, :receive_timeout, 60_000)
          ) do
-      {:ok, %{status: status}} when status in 200..299 ->
+      {:ok, _} ->
+        # even when the server replies with a status code that is not in the 200 range
+        # it might still send a reply on the SSE connection
         :ok
-
-      {:ok, %{status: status}} ->
-        {:reply_error,
-         %{
-           jsonrpc: "2.0",
-           error: %{
-             code: -32011,
-             message: "Failed to forward request. Request failed with status code: #{status}"
-           }
-         }}
 
       {:error, %Req.TransportError{reason: reason}} ->
         Logger.error("Failed to forward message #{inspect(message)}:\n#{inspect(reason)}")
