@@ -75,7 +75,7 @@ defmodule McpProxy.SSEServer do
     post "/message" do
       with %{query_params: %{"session_id" => session_id}} <- conn,
            [{pid, _}] <- Registry.lookup(McpProxy.SSEServer.Registry, session_id) do
-        GenServer.cast(pid, {:request, conn.body_params})
+        GenServer.call(pid, {:request, conn.body_params})
 
         conn
         |> put_resp_content_type("application/json")
@@ -93,16 +93,16 @@ defmodule McpProxy.SSEServer do
     end
 
     @impl GenServer
-    def handle_cast({:request, message}, state) do
+    def handle_call({:request, message}, _from, state) do
       result = handle_message(message)
 
       if result do
         case Plug.Conn.chunk(state.conn, ["event: message\ndata: ", result]) do
-          {:ok, conn} -> {:noreply, %{state | conn: conn}}
+          {:ok, conn} -> {:reply, :ok, %{state | conn: conn}}
           {:error, :closed} -> {:stop, :shutdown, state}
         end
       else
-        {:noreply, state}
+        {:reply, :ok, state}
       end
     end
 
@@ -161,6 +161,20 @@ defmodule McpProxy.SSEServer do
         jsonrpc: "2.0",
         id: request_id,
         result: %{content: [%{text: what}]}
+      })
+    end
+
+    defp handle_message(%{
+           "id" => request_id,
+           "method" => "tools/call",
+           "params" => %{"name" => "sleep", "arguments" => %{"time" => time}}
+         }) do
+      Process.sleep(time)
+
+      Jason.encode_to_iodata!(%{
+        jsonrpc: "2.0",
+        id: request_id,
+        result: %{content: [%{text: "Ok"}]}
       })
     end
 

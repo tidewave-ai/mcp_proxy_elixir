@@ -51,3 +51,8 @@ Remember to replace `$HOME` by your home directory, such as "c:\Users\johndoe".
 ## Configuration
 
 `mcp-proxy` either accepts the SSE URL as argument or using the environment variable `SSE_URL`. For debugging purposes, you can also pass `--debug`, which will log debug messages on stderr.
+
+Other supported flags:
+
+* `--max-disconnected-time` the maximum amount of time for trying to reconnect while disconnected. When not set, defaults to infinity.
+* `--receive-timeout` the maximum amount of time to wait for an individual reply from the MCP server in milliseconds. Defaults to 60000 (60 seconds).
