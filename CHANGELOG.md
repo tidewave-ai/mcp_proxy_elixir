@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 (2025-04-26)
+
+* Enhancements
+  * add configurable `--receive-timeout` for POST requests (defaults to 60 seconds).
+    Note: the proxy will reply to the MCP request with an error response and discard
+    the real response if it arrives after the timeout. Previously, POST requests timed
+    out after 15 seconds.
+
 ## 0.3.0 (2025-04-23)
 
 * Enhancements
