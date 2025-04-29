@@ -119,8 +119,17 @@ defmodule McpProxy.SSE do
           send(parent, {:sse_event, {:message, decoded}})
 
         {:ok, event_type, data} ->
-          if debug, do: Logger.debug("Received SSE event: #{event_type}, data: #{data}")
-          send(parent, {:sse_event, {event_type, data}})
+          if debug,
+            do: Logger.debug("Received unexpected SSE event: #{event_type}, data: #{data};")
+
+          case Jason.decode(data) do
+            {:ok, decoded} ->
+              # assuming it is a regular message
+              send(parent, {:sse_event, {:message, decoded}})
+
+            _ ->
+              Logger.error("Failed to parse SSE event!")
+          end
 
         {:error, error} ->
           if debug, do: Logger.debug("Error parsing SSE event: #{inspect(error)}")
