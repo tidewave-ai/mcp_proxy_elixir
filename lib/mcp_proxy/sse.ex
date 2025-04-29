@@ -415,7 +415,7 @@ defmodule McpProxy.SSE do
         # it might still send a reply on the SSE connection
         :ok
 
-      {:error, %Req.TransportError{reason: reason}} ->
+      {:error, reason} ->
         Logger.error("Failed to forward message #{inspect(message)}:\n#{inspect(reason)}")
 
         {:reply_error,
