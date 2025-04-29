@@ -182,12 +182,10 @@ defmodule McpProxy.SSE do
         %{state: :waiting_for_endpoint} = state
       ) do
     endpoint =
-      if String.starts_with?(endpoint, "http://") or String.starts_with?(endpoint, "https://") do
-        endpoint
-      else
-        %{URI.new!(state.url) | path: endpoint}
-        |> URI.to_string()
-      end
+      state.url
+      |> URI.new!()
+      |> URI.merge(endpoint)
+      |> URI.to_string()
 
     if init_message = state.init_message do
       # this is a reconnect, as we already have an init message stored
