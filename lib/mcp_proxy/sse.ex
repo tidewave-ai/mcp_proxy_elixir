@@ -190,6 +190,12 @@ defmodule McpProxy.SSE do
         {:sse_event, {:endpoint, endpoint}},
         %{state: :waiting_for_endpoint} = state
       ) do
+    endpoint =
+      state.url
+      |> URI.new!()
+      |> URI.merge(endpoint)
+      |> URI.to_string()
+
     if init_message = state.init_message do
       # this is a reconnect, as we already have an init message stored
       # therefore we forward the existing message to the server and wait in
