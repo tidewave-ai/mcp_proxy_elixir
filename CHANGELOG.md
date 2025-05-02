@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.3 (2025-05-02)
+
+* Bug fixes
+  * Ignore SSE comment lines
+  * Handle notifications while the server is disconnected
+
+## 0.3.2 (2025-04-29)
+
+* Bug fixes
+  * Allow relative URLs in MCP endpoint event
+  * Try to parse any event type, not only `message`
+
 ## 0.3.1 (2025-04-26)
 
 * Enhancements

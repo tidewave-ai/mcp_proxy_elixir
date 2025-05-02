@@ -1,7 +1,7 @@
 defmodule McpProxy.MixProject do
   use Mix.Project
 
-  @version "0.3.1"
+  @version "0.3.3"
 
   def project do
     [
