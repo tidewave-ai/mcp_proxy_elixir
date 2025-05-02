@@ -107,6 +107,14 @@ defmodule McpProxy.SSEServer do
     end
 
     @impl GenServer
+    def handle_cast({:send_sse, line}, state) do
+      case Plug.Conn.chunk(state.conn, line) do
+        {:ok, conn} -> {:noreply, %{state | conn: conn}}
+        {:error, :closed} -> {:stop, :shutdown, state}
+      end
+    end
+
+    @impl GenServer
     def handle_info(_other, state) do
       {:noreply, state}
     end

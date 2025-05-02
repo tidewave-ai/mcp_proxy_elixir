@@ -131,11 +131,19 @@ defmodule McpProxy.SSE do
               Logger.error("Failed to parse SSE event!")
           end
 
+        :ignore ->
+          Logger.debug("Ignoring SSE line: #{inspect(event_data)}")
+          :ok
+
         {:error, error} ->
           if debug, do: Logger.debug("Error parsing SSE event: #{inspect(error)}")
       end
     end)
   end
+
+  # messages starting with : are considered to be comments
+  # https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+  defp parse_sse_event(":" <> _), do: :ignore
 
   defp parse_sse_event(data) do
     lines = String.split(data, "\n", trim: true)
