@@ -145,6 +145,55 @@ defmodule McpProxyTest do
     end) =~ "Discarding!"
   end
 
+  test "ignores notifications while disconnected", %{
+    io_pid: io_pid,
+    reply_as: reply_as,
+    port: port
+  } do
+    io =
+      capture_io(:stderr, fn ->
+        # bye bye, server!
+        stop_supervised!(SSEServer)
+
+        # now send a client request
+        send_message(
+          io_pid,
+          reply_as,
+          %{
+            jsonrpc: "2.0",
+            method: "notifications/cancelled",
+            params: %{"reason" => "Error: MCP error -32001: Request timed out", "requestId" => 6}
+          }
+        )
+
+        # now start the server again
+        start_supervised!({SSEServer, [port: port]})
+
+        assert_receive {:io_request, io_pid, reply_as, {:get_line, :unicode, []}}
+
+        send_message(
+          io_pid,
+          reply_as,
+          %{
+            jsonrpc: "2.0",
+            id: "call-1",
+            method: "tools/call",
+            params: %{"name" => "echo", "arguments" => %{"what" => "Hey!"}}
+          }
+        )
+
+        assert_receive {:io_request, _io_pid, _reply_as, {:get_line, :unicode, []}}
+
+        assert_receive {:io_request, put_pid, put_reply_as, {:put_chars, :unicode, json}}, 5000
+        send(put_pid, {:io_reply, put_reply_as, :ok})
+
+        assert %{"id" => "call-1", "result" => call_response} = Jason.decode!(json)
+        assert %{"content" => [%{"text" => "Hey!"}]} = call_response
+      end)
+
+    assert io =~ "Ignoring notification while disconnected"
+  end
+
   defp send_message(io_pid, reply_as, json) do
     send(io_pid, {:io_reply, reply_as, Jason.encode_to_iodata!(json)})
   end

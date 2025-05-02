@@ -274,6 +274,11 @@ defmodule McpProxy.SSE do
         reply_disconnected(request_id)
 
         {:noreply, state}
+
+      %{"method" => _other} ->
+        Logger.debug("Ignoring notification while disconnected: #{inspect(event)}")
+        # ignore notifications
+        {:noreply, state}
     end
   end
 
