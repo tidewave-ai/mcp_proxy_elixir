@@ -1,3 +1,6 @@
+> [!WARNING]  
+> This project is deprecated. Use [the Rust MCP Proxy](https://github.com/tidewave-ai/mcp_proxy_rust) instead, which is easier to install if you don't already have Elixir.
+
 # mcp-proxy
 
 An Elixir escript for connecting STDIO based MCP clients to HTTP (SSE) based MCP servers.
